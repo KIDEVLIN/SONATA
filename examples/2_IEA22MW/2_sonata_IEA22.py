@@ -38,7 +38,7 @@ flag_write_BeamDyn = True                       # write BeamDyn input files for 
 flag_write_BeamDyn_unit_convert = ''  #'mm_to_m'     # applied only when exported to BeamDyn files
 
 # Shape of corners
-choose_cutoff = 2    # 0 step, 2 round
+choose_cutoff = 0    # 0 step, 2 round
 
 
 # create flag dictionary

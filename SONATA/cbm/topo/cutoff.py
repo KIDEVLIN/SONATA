@@ -40,7 +40,7 @@ def cutoff_layer(Trimmed_BSplineLst, OffsetBSplineLst, S1, S2, cutoff_style=2):
     cutoff_depth = 1.2 * dist / length * paralength
 
     # check if OffsetBSplineLst is closed:
-    if not Offset_StartPnt.IsEqual(Offset_EndPnt, 1e-4) and not (S1 == 0.0 and S2 == 1.0):
+    if not Offset_StartPnt.IsEqual(Offset_EndPnt, 1e-4) and not (S1 == 0.0 and S2 == 1.0) and cutoff_style > 0:
         # if cutoff_style == 0:  # STEP-CUTOFF
         #     OffsetBSplineLst = trim_BSplineLst(OffsetBSplineLst, S1 + 0.01*cutoff_depth, S2 - 0.01*cutoff_depth, S1, S2)  # quasi step approximation for better convergence
         #     Offset_StartPnt = get_BSplineLst_Pnt2d(OffsetBSplineLst, S1, S1, S2)

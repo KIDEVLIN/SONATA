@@ -8,6 +8,8 @@ from OCC.Core.Geom2dAPI import (Geom2dAPI_PointsToBSpline,
 from OCC.Core.gp import gp_Pnt2d, gp_Vec2d, gp_Dir2d
 from OCC.Core.Geom2d import Geom2d_Line
 from OCC.Core.Geom2dAPI import Geom2dAPI_InterCurveCurve
+from OCC.Core.Geom2dAPI import Geom2dAPI_Interpolate
+from OCC.Core.TColgp import TColgp_Array1OfPnt2d, TColgp_HArray1OfPnt2d
 
 # First party modules
 from SONATA.cbm.mesh.cell import Cell
@@ -25,6 +27,61 @@ def display_bsplinelst(bsplinelst, color = 'red'):
         x_values = [bspline.Value(u).X() for u in u_values]
         y_values = [bspline.Value(u).Y() for u in u_values]
         plt.plot(x_values, y_values, color = color)
+
+
+def create_interpolated_bspline_2d(points):
+    # Convert points to TColgp_HArray1OfPnt2d
+    hpoints = TColgp_HArray1OfPnt2d(1, points.Length())
+    for i in range(1, points.Length() + 1):
+        hpoints.SetValue(i, points.Value(i))
+    
+    # Interpolate the points to create a BSpline
+    interp = Geom2dAPI_Interpolate(hpoints, False, 1e-6)
+    interp.Perform()
+    return interp.Curve()
+
+def connect_bspline_curves_2d(bsplines, ignore_last_to_first=False):
+    connected_splines = [bsplines[0]]
+    
+    for i in range(len(bsplines) - 1):
+        current_spline = bsplines[i]
+        next_spline = bsplines[i + 1]
+        
+        # Get the end point of the current spline
+        last_point = current_spline.EndPoint()
+        
+        # Get the start point of the next spline
+        first_point = next_spline.StartPoint()
+        
+        # Check if the points are different
+        if not last_point.IsEqual(first_point, 1e-6):
+            # Create a new BSpline that connects the two points
+            points = TColgp_Array1OfPnt2d(1, 2)
+            points.SetValue(1, last_point)
+            points.SetValue(2, first_point)
+            connecting_spline = create_interpolated_bspline_2d(points)
+            connected_splines.append(connecting_spline)
+        
+        connected_splines.append(next_spline)
+    
+    # Handle the connection between the last and first BSplines
+    if not ignore_last_to_first:
+        last_spline = bsplines[-1]
+        first_spline = bsplines[0]
+        
+        # Get the end point of the last spline and the start point of the first spline
+        last_point = last_spline.EndPoint()
+        first_point = first_spline.StartPoint()
+        
+        # Check if they are different and connect them if necessary
+        if not last_point.IsEqual(first_point, 1e-6):
+            points = TColgp_Array1OfPnt2d(1, 2)
+            points.SetValue(1, last_point)
+            points.SetValue(2, first_point)
+            connecting_spline = create_interpolated_bspline_2d(points)
+            connected_splines.append(connecting_spline)
+    
+    return connected_splines
 
 def angle_between(v1, v2):
     """Returns the angle in radians between vectors 'v1' and 'v2'"""
@@ -99,8 +156,6 @@ def mesh_by_projecting_nodes_on_BSplineLst(a_BSplineLst, a_nodes, b_BSplineLst, 
     TODO: * scale distance not only to layerthickenss but also to min_len.
             or adapt the distance individually for each node. 
     """
-    # display_bsplinelst(a_BSplineLst, 'blue')
-    # display_bsplinelst(b_BSplineLst, 'green')
 
     # KWARGS:
     if kw.get("display") != None:
@@ -118,6 +173,13 @@ def mesh_by_projecting_nodes_on_BSplineLst(a_BSplineLst, a_nodes, b_BSplineLst, 
     closed_a = False
     if a_BSplineLst[0].StartPoint().IsEqual(a_BSplineLst[-1].EndPoint(), 1e-5):
         closed_a = True
+
+    display_bsplinelst(a_BSplineLst, color='black')
+    display_bsplinelst(b_BSplineLst, color = 'blue')
+    a_BSplineLst = connect_bspline_curves_2d(a_BSplineLst, not closed_a)
+    b_BSplineLst = connect_bspline_curves_2d(b_BSplineLst, not closed_a)
+    display_bsplinelst(a_BSplineLst, color='red')
+    display_bsplinelst(b_BSplineLst, color = 'orange')
 
     # ==================PROJECT POINTS ON LOWER BOUNDARY =======================
     if closed_a == True:
@@ -570,5 +632,8 @@ def mesh_by_projecting_nodes_on_BSplineLst(a_BSplineLst, a_nodes, b_BSplineLst, 
 
         display.View_Top()
         display.FitAll()
-
+    for node in a_nodes:
+        plt.plot(node.coordinates[0], node.coordinates[1], 'o', color = 'black')
+    for node in b_nodes:
+        plt.plot(node.coordinates[0], node.coordinates[1], 'o', color = 'blue')
     return a_nodes, b_nodes, cellLst
